@@ -6,7 +6,7 @@
 -define(HASH, $#).
 -define(BACKSLASH, $\\).
 
-%%====================================================================
+%%==================================================================== 
 %% API functions
 
 %%--------------------------------------------------------------------
@@ -17,6 +17,7 @@ get_patterns(CorePatternDir, AppPatternFile) ->
     AppPatterns = load_patterns_from_file(AppPatternFile),
     Metadata = extract_metadata(AppPatterns),
     ExpandedPatterns = maps:map(fun(Key, Val) -> {maps:get(Key, Metadata), expand_pattern(Val, CorePatterns)} end, AppPatterns),
+    %io:format("Expanded patterns: ~p~n", [ExpandedPatterns]),
     maps:map(fun(_Key, {PatternMetadata, ExpandedPattern}) -> {PatternMetadata, compile_pattern(ExpandedPattern)} end, ExpandedPatterns).
 
 %%--------------------------------------------------------------------
@@ -33,6 +34,7 @@ match(Text, [{Name, {Metadata, CompiledPattern}}|T]) ->
     case re:run(Text, CompiledPattern, [global, {capture, all_but_first, list}]) of
         {match, [Captured|_]} ->
             {Name, convert_types(Captured, Metadata)};
+            %{Name, Captured};
         nomatch ->
             match(Text, T)
     end.
@@ -119,10 +121,10 @@ process_line(Line) ->
 
 %%--------------------------------------------------------------------
 expand_pattern(Pattern, Patterns) ->
-    %io:format("Entering high level expansion with ~p~n", [Pattern]),
+    %io:format("***** Entering high level expansion with ~p~n", [Pattern]),
     Pattern1 = expand_high_level(Pattern, Patterns),
 
-    %io:format("Entering low level expansion with: ~p~n", [Pattern1]),
+    %io:format("***** Entering low level expansion with: ~p~n", [Pattern1]),
     Pattern2 = expand_low_level(Pattern1, Patterns),
 
     case re:run(Pattern2, "%{\\w+(:\\w+)?}", [ungreedy]) of 
@@ -243,6 +245,7 @@ get_type(Name, [_|Types]) ->
 
 %%--------------------------------------------------------------------
 convert_types(Data, Metadata) ->
+    %io:format("Data: ~p~nMetadata: ~p~n", [Data, Metadata]),
     convert_types(Data, Metadata, #{}).
 
 convert_types([], [], Result) ->
@@ -258,6 +261,13 @@ convert_type(int, Val) ->
 convert_type(float, Val) ->
     list_to_float(Val);
 
+convert_type(list, Val) ->
+    Val;
+
+convert_type(erlang_timestamp, Val) ->
+    UnixTS = list_to_integer(Val),
+    {UnixTS div 1000000, UnixTS rem 1000000, 0};
+
 convert_type(_, Val) ->
-    Val.
+    list_to_binary(Val).
 
