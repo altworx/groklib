@@ -205,8 +205,12 @@ extract_names(Pattern) ->
 
 %%--------------------------------------------------------------------
 extract_types(Pattern) ->
-    {match, Captured} = re:run(Pattern, "%{(\\w+):(\\w+):(\\w+)}", [ungreedy, global, {capture,all_but_first,list}]),
-    lists:map(fun([_V, K, T | _]) -> {list_to_atom(K), list_to_atom(T)} end, Captured).
+    case re:run(Pattern, "%{(\\w+):(\\w+):(\\w+)}", [ungreedy, global, {capture,all_but_first,list}]) of
+        {match, Captured} ->
+            lists:map(fun([_V, K, T | _]) -> {list_to_atom(K), list_to_atom(T)} end, Captured);
+        nomatch ->
+            []
+    end.
 
 %%--------------------------------------------------------------------
 merge_names_types(Names, Types) ->
