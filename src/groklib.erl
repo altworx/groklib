@@ -1,120 +1,42 @@
 -module(groklib).
 
--export([get_patterns/2, match/2]).
+-export([build_pattern/2, match/3]).
 
--define(SPACE, 16#20).
--define(HASH, $#).
+-type exp_pattern() :: {Metadata :: [string()], CompiledRegExp :: re:mp()}.
+-export_type([exp_pattern/0]).
+
 -define(BACKSLASH, $\\).
 
 %%==================================================================== 
 %% API functions
 
 %%--------------------------------------------------------------------
-%% Returns list of compiled app patterns with their names and metadata
+%% Returns metadata of the pattern and resulting compiled regular expression
 %%
-get_patterns(CorePatternDir, AppPatternFile) ->
-    CorePatterns = load_patterns_from_dir(CorePatternDir),
-    AppPatterns = load_patterns_from_file(AppPatternFile),
-    Metadata = extract_metadata(AppPatterns),
-    ExpandedPatterns = maps:map(fun(Key, Val) -> {maps:get(Key, Metadata), expand_pattern(Val, CorePatterns)} end, AppPatterns),
-    %io:format("Expanded patterns: ~p~n", [ExpandedPatterns]),
-    maps:map(fun(_Key, {PatternMetadata, ExpandedPattern}) -> {PatternMetadata, compile_pattern(ExpandedPattern)} end, ExpandedPatterns).
+-spec build_pattern(AppPattern :: list(), CorePatterns :: map()) -> tuple().
+
+build_pattern(AppPattern, CorePatterns) ->
+    Metadata = extract_metadata(AppPattern),
+    RegExp = expand_pattern(AppPattern, CorePatterns),
+    CompiledRegExp = compile_pattern(RegExp),
+    {Metadata, CompiledRegExp}.
 
 %%--------------------------------------------------------------------
-%% Receives text to match and list of compiled patterns.
-%% Returns either nomatch or tuple containing name of ther pattern 
-%% and list of captured data
+%% Receives text to match, metadata and regular expression.
+%% Returns either nomatch or captured data
 %%
--spec match(Text :: list(), Patterns :: list(tuple())) -> nomatch | tuple().
+-spec match(Text :: list(), Metadata :: list(), RE :: list()) -> nomatch | map().
 
-match(_Text, []) ->
-    nomatch;
-
-match(Text, [{Name, {Metadata, CompiledPattern}}|T]) ->
-    case re:run(Text, CompiledPattern, [global, {capture, all_but_first, list}]) of
+match(Text, Metadata, RegExp) ->
+    case re:run(Text, RegExp, [global, {capture, all_but_first, list}]) of
         {match, [Captured|_]} ->
-            {Name, convert_types(Captured, Metadata)};
-            %{Name, Captured};
+            convert_types(Captured, Metadata);
         nomatch ->
-            match(Text, T)
+            nomatch
     end.
 
 %%====================================================================
 %% Private functions
-
-%%====================================================================
-%% Utility functions for loading patterns from files
-
-%%--------------------------------------------------------------------
-load_patterns_from_dir(Dir) ->
-    case file:list_dir(Dir) of
-        {ok, Files} ->
-            Paths = [lists:append(Dir, F) || F <- Files],
-            load_patterns_from_files(Paths, #{});
-        _ ->
-            #{}
-    end.
-
-%%--------------------------------------------------------------------
-load_patterns_from_files([], Patterns) ->
-    Patterns;
-
-load_patterns_from_files([Path|Paths], Patterns) ->
-    NewPatterns = maps:merge(Patterns, load_patterns_from_file(Path)),
-    load_patterns_from_files(Paths, NewPatterns).
-
-%%--------------------------------------------------------------------
-load_patterns_from_file(Path) ->
-    {ok, File} = file:open(Path, [read]),
-    process_file(File).
-
-%%--------------------------------------------------------------------
-process_file(File) ->
-    process_file(File, #{}).
-
-process_file(File, Patterns) ->
-    case file:read_line(File) of
-        eof -> 
-            Patterns;
-        {ok, Line} ->
-            Rslt = process_line(Line),
-            case Rslt of
-                nopattern ->
-                    process_file(File, Patterns);
-                {pattern, Key, Val} ->
-                    NewPatterns = maps:put(Key, Val, Patterns),
-                    process_file(File, NewPatterns)
-            end
-    end.
-
-%%--------------------------------------------------------------------
-process_line(Line) ->
-    Line1 = string:strip(Line, right, $\n),
-    Line2 = string:strip(Line1),
-    case length(Line2) of
-        0 ->
-            % Empty line
-            nopattern;
-        _ ->
-            [F| _] = Line2,
-            case F of
-                ?HASH ->
-                    % Comment
-                    nopattern;
-                _ ->
-                    Pos = string:chr(Line2, ?SPACE),
-                    case Pos of
-                        0 ->
-                            % Invalid line
-                            nopattern;
-                        _ ->
-                            % Valid line
-                            Key = string:substr(Line2, 1, Pos - 1),
-                            Val = string:substr(Line2, Pos + 1),
-                            {pattern, string:strip(Key), string:strip(Val)}
-                    end
-            end
-    end.
 
 %%====================================================================
 %% Utility functions for pattern expansion and compilation
@@ -185,20 +107,10 @@ escape([H|T], Rslt) ->
 %%====================================================================
 %% Utility functions for meatadata extraction
 
-%%--------------------------------------------------------------------
-extract_metadata(Patterns) ->
-    L = maps:to_list(Patterns),
-    M = extract_metadata(L, []),
-    maps:from_list(M).
-
-extract_metadata([], Metadata) ->
-    Metadata;
-
-extract_metadata([{Name, Pattern}|Patterns], Metadata) ->
+extract_metadata(Pattern) ->
    Names = extract_names(Pattern),
    Types = extract_types(Pattern),
-   Merged = merge_names_types(Names, Types),
-   extract_metadata(Patterns, [{Name, Merged}|Metadata]).
+   merge_names_types(Names, Types).
 
 %%--------------------------------------------------------------------
 extract_names(Pattern) ->
@@ -245,7 +157,6 @@ get_type(Name, [_|Types]) ->
 
 %%--------------------------------------------------------------------
 convert_types(Data, Metadata) ->
-    %io:format("Data: ~p~nMetadata: ~p~n", [Data, Metadata]),
     convert_types(Data, Metadata, #{}).
 
 convert_types([], [], Result) ->
