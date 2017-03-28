@@ -1,6 +1,6 @@
 -module(groklib).
 
--export([build_pattern/2, match/3]).
+-export([build_pattern/2, match/3, get_subpatterns/1]).
 
 -type exp_pattern() :: {Metadata :: [string()], CompiledRegExp :: re:mp()}.
 -export_type([exp_pattern/0]).
@@ -25,7 +25,7 @@ build_pattern(AppPattern, CorePatterns) ->
 %% Receives text to match, metadata and regular expression.
 %% Returns either nomatch or captured data
 %%
--spec match(Text :: list(), Metadata :: list(), RE :: list()) -> nomatch | map().
+-spec match(Text :: string(), Metadata :: list(), RE :: string()) -> nomatch | map().
 
 match(Text, Metadata, RegExp) ->
     case re:run(Text, RegExp, [global, {capture, all_but_first, list}]) of
@@ -34,6 +34,15 @@ match(Text, Metadata, RegExp) ->
         nomatch ->
             nomatch
     end.
+
+%%--------------------------------------------------------------------
+%% Receives pattern
+%% Returns names of included grok subpatterns
+%%
+-spec get_subpatterns(Pattern :: string()) -> [string].
+
+get_subpatterns(Pattern) ->
+    [X || [_, X |_] <- extract_names(Pattern)].
 
 %%====================================================================
 %% Private functions
@@ -109,13 +118,19 @@ escape([H|T], Rslt) ->
 
 extract_metadata(Pattern) ->
    Names = extract_names(Pattern),
+   Defaults = set_defaults(Names),
    Types = extract_types(Pattern),
-   merge_names_types(Names, Types).
+   merge_names_types(Defaults, Types).
 
 %%--------------------------------------------------------------------
 extract_names(Pattern) ->
     {match, Captured} = re:run(Pattern, "%{(\\w+):(\\w+)(?::\\w+)?}", [ungreedy, global, {capture,all_but_first,list}]),
-    lists:map(fun([_V, K | _]) -> {list_to_atom(K), undefined} end, Captured).
+    Captured.
+
+%%--------------------------------------------------------------------
+set_defaults(Names) ->
+    %lists:map(fun([_V, K | _]) -> {list_to_atom(K), undefined} end, Names).
+    [{list_to_atom(X), undefined} || [_, X |_] <- Names].
 
 %%--------------------------------------------------------------------
 extract_types(Pattern) ->
