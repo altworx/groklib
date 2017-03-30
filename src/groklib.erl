@@ -178,7 +178,7 @@ convert_types([], [], Result) ->
     Result;
 
 convert_types([Value|Data], [{Name, Type}|Metadata], Result) ->
-   convert_types(Data, Metadata, maps:put(atom_to_list(list_to_binary(Name)), convert_type(Type, Value), Result)).
+   convert_types(Data, Metadata, maps:put(list_to_binary(atom_to_list(Name)), convert_type(Type, Value), Result)).
 
 %%--------------------------------------------------------------------
 convert_type(int, Val) ->
