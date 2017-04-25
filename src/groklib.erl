@@ -2,8 +2,9 @@
 
 -export([build_pattern/2, match/3, get_subpatterns/1, get_pattern_metadata/1]).
 
--type exp_pattern() :: {Metadata :: [string()], CompiledRegExp :: re:mp()}.
--export_type([exp_pattern/0]).
+-type grok_metadata() :: [{string(), atom()}].
+-type exp_pattern() :: {grok_metadata(), CompiledRegExp :: re:mp()}.
+-export_type([exp_pattern/0, grok_metadata/0]).
 
 -define(BACKSLASH, $\\).
 
@@ -13,7 +14,7 @@
 %%--------------------------------------------------------------------
 %% Returns metadata of the pattern and resulting compiled regular expression
 %%
--spec build_pattern(AppPattern :: list(), CorePatterns :: map()) -> tuple().
+-spec build_pattern(AppPattern :: [string()], CorePatterns :: #{Name :: string() => Pattern :: string()}) -> exp_pattern().
 
 build_pattern(AppPattern, CorePatterns) ->
     Metadata = extract_metadata(AppPattern),
@@ -25,7 +26,7 @@ build_pattern(AppPattern, CorePatterns) ->
 %% Receives text to match, metadata and regular expression.
 %% Returns either nomatch or captured data
 %%
--spec match(Text :: string(), Metadata :: list(), RE :: string()) -> nomatch | map().
+-spec match(Text :: string(), Metadata :: list(), RE :: string()) -> nomatch | #{Name :: string => Value :: term()}.
 
 match(Text, Metadata, RegExp) ->
     case re:run(Text, RegExp, [global, {capture, all_but_first, list}]) of
@@ -39,7 +40,7 @@ match(Text, Metadata, RegExp) ->
 %% Receives pattern
 %% Returns names of included grok subpatterns
 %%
--spec get_subpatterns(Pattern :: string()) -> [string].
+-spec get_subpatterns(Pattern :: string()) -> [string()].
 
 get_subpatterns(Pattern) ->
     [X || [_, X |_] <- extract_names(Pattern)].
@@ -48,7 +49,7 @@ get_subpatterns(Pattern) ->
 %% Receives pattern
 %% Returns complete metadata of the pattern
 %%
--spec get_pattern_metadata(Pattern :: string()) -> map().
+-spec get_pattern_metadata(Pattern :: string()) -> grok_metadata().
 
 get_pattern_metadata(Pattern) ->
     extract_metadata(Pattern).
@@ -190,6 +191,9 @@ convert_types([Value|Data], [{Name, Type}|Metadata], Result) ->
    convert_types(Data, Metadata, maps:put(Name, convert_type(Type, Value), Result)).
 
 %%--------------------------------------------------------------------
+convert_type(binary, Val) ->
+    list_to_binary(Val);
+
 convert_type(int, Val) ->
     list_to_integer(Val);
 
