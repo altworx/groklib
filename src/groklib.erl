@@ -1,6 +1,6 @@
 -module(groklib).
 
--export([build_pattern/2, match/3, get_subpatterns/1]).
+-export([build_pattern/2, match/3, get_subpatterns/1, get_pattern_metadata/1]).
 
 -type exp_pattern() :: {Metadata :: [string()], CompiledRegExp :: re:mp()}.
 -export_type([exp_pattern/0]).
@@ -43,6 +43,15 @@ match(Text, Metadata, RegExp) ->
 
 get_subpatterns(Pattern) ->
     [X || [_, X |_] <- extract_names(Pattern)].
+
+%%--------------------------------------------------------------------
+%% Receives pattern
+%% Returns complete metadata of the pattern
+%%
+-spec get_pattern_metadata(Pattern :: string()) -> map().
+
+get_pattern_metadata(Pattern) ->
+    extract_metadata(Pattern).
 
 %%====================================================================
 %% Private functions
@@ -130,13 +139,13 @@ extract_names(Pattern) ->
 %%--------------------------------------------------------------------
 set_defaults(Names) ->
     %lists:map(fun([_V, K | _]) -> {list_to_atom(K), undefined} end, Names).
-    [{list_to_atom(X), undefined} || [_, X |_] <- Names].
+    [{X, undefined} || [_, X |_] <- Names].
 
 %%--------------------------------------------------------------------
 extract_types(Pattern) ->
     case re:run(Pattern, "%{(\\w+):(\\w+):(\\w+)}", [ungreedy, global, {capture,all_but_first,list}]) of
         {match, Captured} ->
-            lists:map(fun([_V, K, T | _]) -> {list_to_atom(K), list_to_atom(T)} end, Captured);
+            lists:map(fun([_V, K, T | _]) -> {K, list_to_atom(T)} end, Captured);
         nomatch ->
             []
     end.
@@ -178,7 +187,7 @@ convert_types([], [], Result) ->
     Result;
 
 convert_types([Value|Data], [{Name, Type}|Metadata], Result) ->
-   convert_types(Data, Metadata, maps:put(list_to_binary(atom_to_list(Name)), convert_type(Type, Value), Result)).
+   convert_types(Data, Metadata, maps:put(Name, convert_type(Type, Value), Result)).
 
 %%--------------------------------------------------------------------
 convert_type(int, Val) ->
