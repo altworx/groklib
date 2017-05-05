@@ -29,7 +29,7 @@ build_pattern(AppPattern, CorePatterns) ->
 -spec match(Text :: string(), Metadata :: list(), RE :: string()) -> nomatch | #{Name :: string => Value :: term()}.
 
 match(Text, Metadata, RegExp) ->
-    case re:run(Text, RegExp, [global, {capture, all_but_first, list}]) of
+    case re:run(unicode:characters_to_binary(Text), RegExp, [global, {capture, all_but_first, list}]) of
         {match, [Captured|_]} ->
             convert_types(Captured, Metadata);
         nomatch ->
