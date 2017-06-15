@@ -29,7 +29,7 @@ build_pattern(AppPattern, CorePatterns) ->
 -spec match(Text :: string(), Metadata :: list(), RE :: string()) -> nomatch | #{Name :: string => Value :: term()}.
 
 match(Text, Metadata, RegExp) ->
-    case re:run(unicode:characters_to_binary(Text), RegExp, [global, {capture, all_but_first, list}]) of
+    case re:run(unicode:characters_to_binary(Text), RegExp, [global, {capture, all_but_first, binary}]) of
         {match, [Captured|_]} ->
             convert_types(Captured, Metadata);
         nomatch ->
@@ -191,22 +191,29 @@ convert_types([Value|Data], [{Name, Type}|Metadata], Result) ->
    convert_types(Data, Metadata, maps:put(Name, convert_type(Type, Value), Result)).
 
 %%--------------------------------------------------------------------
+%% match captures binaries so input value Val is always a binary.
+%% We prefer binary because our groklib clients require binaries in
+%% most cases. Although conversion from list to other types is 
+%% easier than conversion from binary.
+%%
 convert_type(binary, Val) ->
-    list_to_binary(Val);
-
-convert_type(int, Val) ->
-    list_to_integer(Val);
-
-convert_type(float, Val) ->
-    list_to_float(Val);
-
-convert_type(list, Val) ->
     Val;
 
+convert_type(int, Val) ->
+    list_to_integer(binary_to_list(Val));
+
+convert_type(float, Val) ->
+    list_to_float(binary_to_list(Val));
+
+convert_type(list, Val) ->
+    binary_to_list(Val);
+
 convert_type(erlang_timestamp, Val) ->
-    UnixTS = list_to_integer(Val),
+    UnixTS = list_to_integer(binary_to_list(Val)),
     {UnixTS div 1000000, UnixTS rem 1000000, 0};
 
 convert_type(_, Val) ->
-    list_to_binary(Val).
+    Val.
+
+%---------------------------------------------------------------------
 
