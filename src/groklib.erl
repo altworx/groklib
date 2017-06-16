@@ -1,6 +1,12 @@
 -module(groklib).
 
--export([build_pattern/2, match/3, get_subpatterns/1, get_pattern_metadata/1]).
+-export([build_pattern/2,
+         match/3, 
+         get_subpatterns/1, 
+         get_pattern_metadata/1, 
+         expand_pattern/2,
+         escape/1,
+         unescape/1]).
 
 -type grok_metadata() :: [{string(), atom()}].
 -type exp_pattern() :: {grok_metadata(), CompiledRegExp :: re:mp()}.
@@ -54,13 +60,11 @@ get_subpatterns(Pattern) ->
 get_pattern_metadata(Pattern) ->
     extract_metadata(Pattern).
 
-%%====================================================================
-%% Private functions
-
-%%====================================================================
-%% Utility functions for pattern expansion and compilation
-
 %%--------------------------------------------------------------------
+%% Expands pattern with Patterns into returned regular expression
+%%
+-spec expand_pattern(Pattern :: string(), Patterns :: [string()]) -> string().
+
 expand_pattern(Pattern, Patterns) ->
     %io:format("***** Entering high level expansion with ~p~n", [Pattern]),
     Pattern1 = expand_high_level(Pattern, Patterns),
@@ -74,6 +78,46 @@ expand_pattern(Pattern, Patterns) ->
         {match, _} ->
             expand_pattern(Pattern2, Patterns)
     end.
+
+%%--------------------------------------------------------------------
+%% Doubles backslash characters
+%%
+-spec escape(Str :: string()) -> string(). 
+
+escape(Str) ->
+    escape(Str, []).
+
+escape([], Rslt) ->
+    lists:reverse(Rslt);
+
+escape([?BACKSLASH|T], Rslt) ->
+    escape(T, [?BACKSLASH | [?BACKSLASH | Rslt]]);
+
+escape([H|T], Rslt) ->
+    escape(T, [H | Rslt]).
+
+%%--------------------------------------------------------------------
+%% Replaces double backslash charackers with single ones.
+%%
+-spec unescape(Str :: string()) -> string().
+
+unescape(Str) ->
+    unescape(Str, []).
+
+unescape([], Rslt) ->
+    lists:reverse(Rslt);
+
+unescape([?BACKSLASH, ?BACKSLASH | T], Rslt) ->
+    unescape(T, [?BACKSLASH | Rslt]);
+
+unescape([H|T], Rslt) ->
+    unescape(T, [H|Rslt]).
+
+%%====================================================================
+%% Private functions
+
+%%====================================================================
+%% Utility functions for pattern expansion and compilation
 
 %%--------------------------------------------------------------------
 expand_high_level(Pattern, Patterns) ->
@@ -107,21 +151,6 @@ expand_low_level(Pattern, Patterns) ->
 compile_pattern(P) ->
     {ok, MP} = re:compile(P, [unicode]),
     MP.
-
-%%--------------------------------------------------------------------
-escape(Str) ->
-    escape(Str, []).
-
-escape([], Rslt) ->
-    lists:reverse(Rslt);
-
-escape([H|T], Rslt) ->
-    case H =:= ?BACKSLASH of
-        true ->
-            escape(T, [H | [H | Rslt]]);
-        false ->
-            escape(T, [H | Rslt])
-    end.
 
 %%====================================================================
 %% Utility functions for meatadata extraction
