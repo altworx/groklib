@@ -226,7 +226,7 @@ convert_types([Value|Data], [{Name, Type}|Metadata], Result) ->
 %% easier than conversion from binary.
 %%
 convert_type(binary, Val) ->
-    unicode:characters_to_binary(Val);
+    Val;
 
 convert_type(int, Val) ->
     list_to_integer(binary_to_list(Val));
@@ -242,7 +242,7 @@ convert_type(erlang_timestamp, Val) ->
     {UnixTS div 1000000, UnixTS rem 1000000, 0};
 
 convert_type(_, Val) ->
-    unicode:characters_to_binary(Val).
+    Val.
 
 %---------------------------------------------------------------------
 
