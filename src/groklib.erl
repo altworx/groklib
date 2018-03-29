@@ -77,34 +77,16 @@ expand_pattern(Pattern, Patterns) ->
 %%--------------------------------------------------------------------
 %% Doubles backslash characters
 %%
--spec escape(Str :: string()) -> string(). 
+-spec escape(Str :: string()) -> string().
 escape(Str) ->
-    escape(Str, []).
-
-escape([], Rslt) ->
-    lists:reverse(Rslt);
-
-escape([?BACKSLASH|T], Rslt) ->
-    escape(T, [?BACKSLASH | [?BACKSLASH | Rslt]]);
-
-escape([H|T], Rslt) ->
-    escape(T, [H | Rslt]).
+    lists:flatten(string:replace(Str, "\\", "\\\\", all)).
 
 %%--------------------------------------------------------------------
 %% Replaces double backslash charackers with single ones.
 %%
 -spec unescape(Str :: string()) -> string().
 unescape(Str) ->
-    unescape(Str, []).
-
-unescape([], Rslt) ->
-    lists:reverse(Rslt);
-
-unescape([?BACKSLASH, ?BACKSLASH | T], Rslt) ->
-    unescape(T, [?BACKSLASH | Rslt]);
-
-unescape([H|T], Rslt) ->
-    unescape(T, [H|Rslt]).
+    lists:flatten(string:replace(Str, "\\\\", "\\", all)).
 
 %%====================================================================
 %% Private functions
