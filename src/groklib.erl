@@ -21,7 +21,6 @@
 %% Returns metadata of the pattern and resulting compiled regular expression
 %%
 -spec build_pattern(AppPattern :: [string()], CorePatterns :: #{Name :: string() => Pattern :: string()}) -> exp_pattern().
-
 build_pattern(AppPattern, CorePatterns) ->
     Metadata = extract_metadata(AppPattern),
     RegExp = expand_pattern(AppPattern, CorePatterns),
@@ -33,7 +32,6 @@ build_pattern(AppPattern, CorePatterns) ->
 %% Returns either nomatch or captured data
 %%
 -spec match(Text :: string(), Metadata :: list(), RE :: string()) -> nomatch | #{Name :: string => Value :: term()}.
-
 match(Text, Metadata, RegExp) ->
     case re:run(unicode:characters_to_binary(Text), RegExp, [global, {capture, all_but_first, binary}]) of
         {match, [Captured|_]} ->
@@ -47,7 +45,6 @@ match(Text, Metadata, RegExp) ->
 %% Returns names of included grok subpatterns
 %%
 -spec get_subpatterns(Pattern :: string()) -> [string()].
-
 get_subpatterns(Pattern) ->
     [X || [_, X |_] <- extract_names(Pattern)].
 
@@ -56,7 +53,6 @@ get_subpatterns(Pattern) ->
 %% Returns complete metadata of the pattern
 %%
 -spec get_pattern_metadata(Pattern :: string()) -> grok_metadata().
-
 get_pattern_metadata(Pattern) ->
     extract_metadata(Pattern).
 
@@ -64,7 +60,6 @@ get_pattern_metadata(Pattern) ->
 %% Expands pattern with Patterns into returned regular expression
 %%
 -spec expand_pattern(Pattern :: string(), Patterns :: [string()]) -> string().
-
 expand_pattern(Pattern, Patterns) ->
     %io:format("***** Entering high level expansion with ~p~n", [Pattern]),
     Pattern1 = expand_high_level(Pattern, Patterns),
@@ -83,7 +78,6 @@ expand_pattern(Pattern, Patterns) ->
 %% Doubles backslash characters
 %%
 -spec escape(Str :: string()) -> string(). 
-
 escape(Str) ->
     escape(Str, []).
 
@@ -100,7 +94,6 @@ escape([H|T], Rslt) ->
 %% Replaces double backslash charackers with single ones.
 %%
 -spec unescape(Str :: string()) -> string().
-
 unescape(Str) ->
     unescape(Str, []).
 
@@ -154,7 +147,7 @@ compile_pattern(P) ->
 
 %%====================================================================
 %% Utility functions for meatadata extraction
-
+%%
 extract_metadata(Pattern) ->
    Names = extract_names(Pattern),
    Defaults = set_defaults(Names),
