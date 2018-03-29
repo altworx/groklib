@@ -163,8 +163,12 @@ extract_metadata(Pattern) ->
 
 %%--------------------------------------------------------------------
 extract_names(Pattern) ->
-    {match, Captured} = re:run(Pattern, "%{(\\w+):(\\w+)(?::\\w+)?}", [ungreedy, global, {capture,all_but_first,list}]),
-    Captured.
+    case re:run(Pattern, "%{(\\w+):(\\w+)(?::\\w+)?}", [ungreedy, global, {capture,all_but_first,list}]) of
+        {match, Captured} ->
+            Captured;
+        nomatch ->
+            []
+    end.
 
 %%--------------------------------------------------------------------
 set_defaults(Names) ->
